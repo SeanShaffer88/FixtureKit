@@ -1,0 +1,11 @@
+# FixtureKit — agent notes
+
+- Determinism is the product, not a property: same spec + seed must give byte-identical output on every platform. Everything is integer math; the one exception, the WAV sine, is an in-crate polynomial in pure f64 ops (`generate::sin_turns`) precisely because platform libm answers differ in the last bit between OSes. Do not "simplify" it into `f64::sin`. ZIP timestamps are pinned to the DOS epoch and TAR mtimes to 0 for the same reason — never let a clock into a fixture.
+- `jpeg_sample` is a FIXED embedded sample (a real 631-byte baseline JPEG, provenance in src/jpeg.rs) and must stay labelled as one in every doc. A parametric JPEG encoder is ROADMAP item 1; do not fake one with a header-only or copied-and-resized byte stream.
+- The PNG encoder writes stored-block zlib IDATs and filter-0 rows by design: validity and predictability over size. Widening it means a real DEFLATE compressor (ROADMAP item 2), and any new encoder feature must keep the chunk-walk + inflate tests proving the output parses.
+- Only PNG-spec-legal (color_type, bit_depth) pairs are accepted (`png::valid_combo`); the error names the combination. Do not loosen it to "encode anyway" — a fixture no real decoder accepts is worse than no fixture.
+- The JSON engine (src/json.rs) is the family design — duplicate keys in one object are a PARSE ERROR by design; do not "fix" that into last-wins. Unknown spec keys are likewise errors, never ignored: a typo'd key that silently did nothing would hand the caller a different fixture than it asked for.
+- There is deliberately no src/platform.rs: generation is pure std (bytes in memory + one fs::write). Do not add OS API surface without a generator that genuinely needs it.
+- The caps (PNG raw 256 MiB, WAV data 64 MiB, archive 4096 entries / 64 MiB per entry / 128 MiB total, text 1M lines) are safety paths; their errors name the cap. Raising one is a spec change, not a tweak.
+- SHA-256 (src/sha256.rs) is hand-rolled for the result receipt — an identity check for fixtures, not a security decision.
+- Zero dependencies. Gate: WinDevKit tools/gate.sh (fmt + clippy both targets + full tests). Check/clippy do not link — CI's real Windows build is the link gate.
