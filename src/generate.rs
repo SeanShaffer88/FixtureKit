@@ -600,9 +600,14 @@ mod tests {
             );
         }
         // Missing parent folder is NOT_FOUND, not a spec error.
+        // The path must go through json_escape like good_path
+        // above: on Windows the temp dir contains backslashes,
+        // and a raw "\n" inside a JSON string parses as a
+        // newline, corrupting the path into a relative one
+        // (ERR_INVALID_ARG) — the Windows CI run caught this.
+        let missing_parent = json_escape(&format!("{}/nope/x.jpg", dir.to_string_lossy()));
         let (code, _) = generate(&format!(
-            "{{\"kind\":\"jpeg_sample\",\"path\":\"{}/nope/x.jpg\"}}",
-            dir.to_string_lossy()
+            "{{\"kind\":\"jpeg_sample\",\"path\":\"{missing_parent}\"}}"
         ))
         .unwrap_err();
         assert_eq!(code, ERR_NOT_FOUND);
